@@ -1,0 +1,8 @@
+{:main         jira-auth.core
+ :target       :nodejs
+ :repl-options {:nrepl-middleware [cider.piggieback/wrap-cljs-repl]}
+ ;; :install-deps true
+ :npm-deps     {:puppeteer "1.19.0"}
+ ;; :env          {:chrome-path     "/usr/local/Caskroom/google-chrome-canary/latest"
+ ;;                :test-target-url "https://google.com"}
+ }

@@ -1,0 +1,59 @@
+** What's this?
+   This is an automation showcase for setting Jira authentication cookies for [[https://github.com/go-jira/jira][go-jira]] (Jira command line client) using [[https://github.com/GoogleChrome/puppeteer][Puppeteer]].
+** Why?
+   Basically in my current company Jira access is limited to be authenticated through Okta. I hate Jira and I can't stand its web-UI. It's beyond awful. But instead of whining how stupid it is, I decided to use it from command line instead.
+   I couldn't find a better way to authenticate go-jira (via other methods), so I looked into authenticating it via session token. And that requires you basically logging into Jira using a browser, then opening dev-tools, then finding auth cookies and saving them in ~/.jira.d/cookies.js. The entire workflow basically screams: "automate me!".
+
+   I decided to try using Puppeteer instead of WebDriver. This script is written in Clojurescript, because that allowed me to launch Puppeteer instance and keep experimenting with it via REPL (without restarting). It would've cost me many more hours to figure out if I had to use plain Javascript.
+
+** The bottom line
+   I doubt that you find this project useful as is, but maybe it would help you to learn a few things.
+** How to use:
+**** Prerequisites
+
+   - nodejs, npm or yarn
+   - clojure CLI
+   - installed and configured gpg
+
+**** For this script to work you're gonna need to:
+
+     - add /resources/cred.gpg (it should be encrypted with your default GPG key)
+       in the following format:
+
+       #+begin_src clojure
+         {:username "your-okta-username"
+          :password "your-okta-password"}
+       #+end_src
+
+     - To test if it was correctly encrypted, you can run:
+
+       #+begin_src sh
+         "$(which gpg2) -q --for-your-eyes-only --no-tty -d resources/creds.gpg"
+       #+end_src
+
+**** then you can run:
+     #+begin_src sh
+       npm
+       # or:
+       yarn
+     #+end_src
+     when it's done installing npm packages:
+     #+begin_src sh
+       npm run-script build
+       # or:
+       yarn run build
+     #+end_src
+
+     Those things need to be run only once.
+
+     Then to run the script:
+
+     #+begin_src sh
+       npm run-script run
+       # or:
+       yarn run run
+     #+end_src
+** This is work in progress
+   I am still pretty much experimenting with it, so please don't hold me accountable for any physical, emotional, monetary, and etc. damage or frustration this work may cause.
+** Acknowledgment
+   I wouldn't be able to figure out the format of ~./jira.d/cookies.js (and other things) without great help from awesome OSS community, see [[https://github.com/go-jira/jira/issues/241][github issue]] for more info.
