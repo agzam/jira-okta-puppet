@@ -33,7 +33,9 @@
            browser (p/await (.launch puppeteer (clj->js opts)))
            page    (p/await (.newPage browser))]
           (reset! current-browser browser)
-          (reset! current-page page)))
+          (reset! current-page page)
+          {:page    page
+           :browser browser}))
 
 (defn okta-page? [page]
   (some? (re-find #"dividendfinance.okta.com" (.url page))))
@@ -43,6 +45,14 @@
    page
    #(aset (js/document.querySelector %) "value" "")
    selector))
+
+(defn remember-me [page]
+  (p/chain
+   (.$ page "input[type=checkbox][name=remember]")
+   #(.getProperty % "checked")
+   #(.jsonValue %)
+   #(when-not %
+      (.click page ".o-form-input-name-remember"))))
 
 (defn login [page]
   (p/chain
@@ -56,15 +66,20 @@
         #(clear-input page pass-sel)
         #(.type page uname-sel username)
         #(.type page pass-sel password)
-        #(.click page ".o-form-input-name-remember")
+        #(remember-me page)
+        #(.waitFor page 300)
         #(.click page "#okta-signin-submit"))))))
 
+
+
 (defn mfa [page]
+  (js/console.log "WAITING FOR THE APPROVAL ON YOUR PHONE...")
   (p/chain
    (.waitFor page ".mfa-verify-push")
    #(.click page "input[type=checkbox][name=autoPush]")
    #(.click page "input[type=checkbox][name=rememberDevice]")
-   #(.click page ".button[type=submit")))
+   #(.click page ".button[type=submit")
+   #(.waitFor page "body#jira")))
 
 (defn retrieve-cookies [page]
   (p/chain
@@ -94,16 +109,20 @@
    jconfig/save-cookies-js))
 
 (defn main []
+  (js/console.log "Let's go!")
   (let [site-url (:endpoint (jconfig/read-config))]
-    (p/chain
-     (launch-browser)
-     #(.goto @current-page site-url)
-     #(login @current-page)
-     ;; TODO: check if mfa needed
-     #(.waitFor @current-page 5000)
-     #(retrieve-cookies @current-page)
-     jconfig/save-cookies-js
-     #(.close @current-browser))))
+    (p/alet
+     [{:keys [page browser]} (p/await (launch-browser))]
+     (p/chain
+      (.goto page site-url)
+      #(login page)
+      #(.waitForNavigation page)
+      #(when (okta-page? page)
+         (mfa page))
+      #(.waitFor page 3000)
+      #(retrieve-cookies page)
+      jconfig/save-cookies-js
+      #(.close browser)))))
 
 (set! *main-cli-fn* main)
 
@@ -115,7 +134,14 @@
     (p/chain
      (.goto @current-page site-url)))
 
+  (p/chain
+   (.$ @current-page "input[type=checkbox][name=remember]")
+   #(.getProperty % "checked")
+   #(.jsonValue %)
+   )
+
   (login @current-page)
+  (okta-page? @current-page)
   (mfa @current-page)
 
   (io/slurp "~/.jira.d/cookies.js")
