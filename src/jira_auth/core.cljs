@@ -21,14 +21,14 @@
 (defonce current-page (atom nil))
 
 (defn launch-browser []
-  (p/alet [opts {:headless        false
+  (p/alet [opts {:headless        true
                  :args            [#_"--start-fullscreen"
                                    "--no-sandbox"
                                    "--disable-setuid-sandbox"
                                    "--window-size=2560,1440"]
                  :userDataDir     "./user_data"
                  :defaultViewport nil
-                 :executablePath  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+                 ;; :executablePath  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
                  }
            browser (p/await (.launch puppeteer (clj->js opts)))
            page    (p/await (.newPage browser))]
