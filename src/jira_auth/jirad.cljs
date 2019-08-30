@@ -14,6 +14,7 @@
    ->clj))
 
 (defn save-cookies-js [cookies]
+  (println "saving cookies")
   (let [content (js/JSON.stringify cookies)]
     (spit (str (.homedir os) "/.jira.d/cookies.js") content)))
 

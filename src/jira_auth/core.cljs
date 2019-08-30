@@ -6,7 +6,16 @@
             [jira-auth.jirad :as jconfig]
             [promesa.core :as p]
             os
+            process
             puppeteer))
+
+(defn headless? []
+  (->
+   process
+   (.-argv)
+   ->clj
+   set
+   (contains? "--headless=true")))
 
 (defn- add-days
   "Takes a js/Date object and adds number of days to it. If `date` parameter is
@@ -21,7 +30,8 @@
 (defonce current-page (atom nil))
 
 (defn launch-browser []
-  (p/alet [opts {:headless        true
+  (println "launching browser")
+  (p/alet [opts {:headless        (headless?)
                  :args            [#_"--start-fullscreen"
                                    "--no-sandbox"
                                    "--disable-setuid-sandbox"
@@ -55,6 +65,7 @@
       (.click page ".o-form-input-name-remember"))))
 
 (defn login [page]
+  (println "logging in")
   (p/chain
    (auth/creds)
    (fn [{:keys [username password]}]
@@ -70,8 +81,6 @@
         #(.waitFor page 300)
         #(.click page "#okta-signin-submit"))))))
 
-
-
 (defn mfa [page]
   (js/console.log "WAITING FOR THE APPROVAL ON YOUR PHONE...")
   (p/chain
@@ -82,6 +91,7 @@
    #(.waitFor page "body#jira")))
 
 (defn retrieve-cookies [page]
+  (println "retrieving cookies")
   (p/chain
    (.cookies page)
    (fn [cookies]
@@ -116,13 +126,17 @@
      (p/chain
       (.goto page site-url)
       #(login page)
-      #(.waitForNavigation page)
+      #(do
+         (println "logged in")
+         (.waitForNavigation page {:waitUntil "load"}))
       #(when (okta-page? page)
          (mfa page))
-      #(.waitFor page 3000)
+      #(.waitFor page 2000)
       #(retrieve-cookies page)
       jconfig/save-cookies-js
-      #(.close browser)))))
+      #(do
+         (println "closing browser")
+         (.close browser))))))
 
 (set! *main-cli-fn* main)
 
