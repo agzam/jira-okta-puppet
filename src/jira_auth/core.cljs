@@ -10,12 +10,13 @@
             puppeteer))
 
 (defn headless? []
-  (->
-   process
-   (.-argv)
-   ->clj
-   set
-   (contains? "--headless=true")))
+  (let [args (->
+              process
+              (.-argv)
+              ->clj
+              set)]
+    (println "arguments " args)
+    (contains? args "--headless=true")))
 
 (defn- add-days
   "Takes a js/Date object and adds number of days to it. If `date` parameter is
@@ -31,15 +32,16 @@
 
 (defn launch-browser []
   (println "launching browser")
-  (p/alet [opts {:headless        (headless?)
-                 :args            [#_"--start-fullscreen"
-                                   "--no-sandbox"
-                                   "--disable-setuid-sandbox"
-                                   "--window-size=2560,1440"]
-                 :userDataDir     "./user_data"
-                 :defaultViewport nil
-                 ;; :executablePath  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-                 }
+  (p/alet [opts {:headless       (headless?)
+                 :args           [#_"--start-fullscreen"
+                                  "--no-sandbox"
+                                  "--disable-setuid-sandbox"
+                                  "--window-size=2560,1440"
+                                  "--lang=en-US"]
+                 :userDataDir    "user_data"
+                 ;; :defaultViewport nil
+                 ;; :executablePath "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+                 :env            {:TZ "America/Los_Angeles"}}
            browser (p/await (.launch puppeteer (clj->js opts)))
            page    (p/await (.newPage browser))]
           (reset! current-browser browser)
@@ -90,28 +92,37 @@
    #(.click page ".button[type=submit")
    #(.waitFor page "body#jira")))
 
+(defn get-browser-date [page]
+  (p/chain
+   (.evaluate page #(.toISOString (js/Date.)))
+   #(js/Date. %)))
+
 (defn retrieve-cookies [page]
   (println "retrieving cookies")
   (p/chain
    (.cookies page)
    (fn [cookies]
-     (->> cookies
-          ->clj
-          (filter #(contains? #{"atlassian.xsrf.token" "JSESSIONID"} (:name %)))
-          (map
-           (fn [{:keys [name value domain path secure session httpOnly]}]
-             {:Name       name
-              :Value      value
-              :Path       path
-              :Domain     domain
-              :Secure     secure
-              :Session    session
-              :Expires    (.toISOString (add-days 15))
-              :RawExpires ""
-              :MaxAge     0
-              :HttpOnly   httpOnly
-              :Unparsed   nil}))
-          ->js))))
+     (p/alet
+      [cur-date (p/await (get-browser-date page))]
+      (let [expires (.toISOString (add-days cur-date 15))]
+        (println "cookie is valid until" expires)
+        (->> cookies
+             ->clj
+             (filter #(contains? #{"atlassian.xsrf.token" "JSESSIONID"} (:name %)))
+             (map
+              (fn [{:keys [name value domain path secure session httpOnly]}]
+                {:Name       name
+                 :Value      value
+                 :Path       path
+                 :Domain     domain
+                 :Secure     secure
+                 :Session    session
+                 :Expires    expires
+                 :RawExpires ""
+                 :MaxAge     0
+                 :HttpOnly   httpOnly
+                 :Unparsed   nil}))
+             ->js))))))
 
 (defn get-n-save [page]
   (p/chain
@@ -128,10 +139,11 @@
       #(login page)
       #(do
          (println "logged in")
-         (.waitForNavigation page {:waitUntil "load"}))
+         (.waitForNavigation page {:waitUntil "domcontentloaded"}))
       #(when (okta-page? page)
          (mfa page))
       #(.waitFor page 2000)
+      #(.screenshot page #js {:path "/tmp/jira-okta-cookies.png"})
       #(retrieve-cookies page)
       jconfig/save-cookies-js
       #(do
