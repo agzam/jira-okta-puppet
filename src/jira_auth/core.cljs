@@ -89,7 +89,8 @@
    (.waitFor page ".mfa-verify-push")
    #(.click page "input[type=checkbox][name=autoPush]")
    #(.click page "input[type=checkbox][name=rememberDevice]")
-   #(.click page ".button[type=submit")
+   #(.waitFor page 50)
+   #(.click page ".button[type=submit]")
    #(.waitFor page "body#jira")))
 
 (defn get-browser-date [page]
