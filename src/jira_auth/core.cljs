@@ -38,9 +38,10 @@
                                   "--disable-setuid-sandbox"
                                   "--window-size=2560,1440"
                                   "--lang=en-US"]
+                 :pipe           true
                  :userDataDir    "user_data"
                  ;; :defaultViewport nil
-                 ;; :executablePath "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+                 :executablePath "/Applications/Chromium.app/Contents/MacOS/Chromium"
                  :env            {:TZ "America/Los_Angeles"}}
            browser (p/await (.launch puppeteer (clj->js opts)))
            page    (p/await (.newPage browser))]
@@ -144,7 +145,7 @@
       #(when (okta-page? page)
          (mfa page))
       #(.waitFor page 2000)
-      #(.screenshot page #js {:path "/tmp/jira-okta-cookies.png"})
+      ;; #(.screenshot page #js {:path "/tmp/jira-okta-cookies.png"})
       #(retrieve-cookies page)
       jconfig/save-cookies-js
       #(do
@@ -156,6 +157,7 @@
 (comment
   (launch-browser)
   (main)
+  (mfa @current-page)
 
   (let [site-url (:endpoint (jconfig/read-config))]
     (p/chain
